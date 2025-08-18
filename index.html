@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Francotirador Ortográfico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'VT323', monospace;
+            cursor: none;
+            background-color: #000;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background-image: url('https://i.postimg.cc/sXxMn7KX/Fondo-ZSC.png');
+            background-size: cover;
+            background-position: center;
+        }
+        
+        /* Estilo para la imagen del encabezado en la pantalla de inicio */
+        .header-image {
+            width: 100%;
+            max-width: 600px; /* Evita que la imagen sea demasiado grande en pantallas de escritorio */
+            height: auto;
+            margin-bottom: 20px;
+        }
+
+        /* Contenedor de la interfaz de usuario */
+        #ui-container {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            font-size: 2rem;
+            text-align: center;
+            line-height: 1.2;
+            z-index: 10;
+        }
+
+        /* Estilo específico para la palabra objetivo */
+        #target-word {
+            text-decoration: underline;
+            text-underline-offset: 8px; /* Separación del subrayado */
+            text-decoration-thickness: 2px; /* Grosor del subrayado */
+            color: #00008B; /* Azul oscuro */
+            font-size: 3rem;
+        }
+
+        /* Contenedor de puntuación y errores */
+        #bottom-ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: space-between;
+            width: 80%;
+            max-width: 600px;
+            color: white;
+            font-size: 1.8rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        #crosshair {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            pointer-events: none;
+            z-index: 20;
+            transition: opacity 0.1s ease;
+        }
+
+        .word {
+            position: absolute;
+            color: #fff;
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            user-select: none;
+            white-space: nowrap;
+            z-index: 5;
+            transition: transform 0.1s linear;
+        }
+
+        /* Estilos de las pantallas de inicio/fin */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            font-size: 3rem;
+            text-align: center;
+            z-index: 30;
+        }
+
+        .modal h2 {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .modal button, .modal select, .modal input {
+            margin: 10px;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            font-family: 'VT323', monospace;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .modal button:hover {
+            background-color: #45a049;
+        }
+
+        .modal input, .modal select {
+            background-color: #333;
+            color: white;
+            border: 2px solid #555;
+        }
+
+        #loading-message {
+            color: #FFD700;
+            font-size: 1.5rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        #player-turn-message {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 2rem;
+            text-align: center;
+            z-index: 40;
+        }
+
+        .feedback-text {
+            position: absolute;
+            font-size: 2rem;
+            font-weight: bold;
+            pointer-events: none;
+            animation: fade-and-fly 1s forwards;
+            z-index: 30;
+        }
+        
+        @keyframes fade-and-fly {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-50px); }
+        }
+
+        /* Estilo para el pie de página */
+        .footer-line {
+            position: absolute;
+            bottom: 60px; /* Ajustado para que esté encima del texto */
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(to right, #ffcc00, #ff8c00); /* Degradado de amarillo a naranja */
+            overflow: hidden; /* Oculta el brillo fuera de la línea */
+        }
+        .footer-line::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            height: 100%;
+            width: 20%;
+            background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0));
+            animation: shine 2s infinite linear;
+        }
+
+        @keyframes shine {
+            0% { left: -20%; }
+            100% { left: 100%; }
+        }
+
+        #footer-text {
+            position: absolute;
+            bottom: 20px;
+            font-size: 2rem; /* Tamaño de fuente reducido */
+            color: yellow; /* Cambiado a color amarillo */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            font-weight: normal;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Pantalla de inicio -->
+        <div id="start-screen" class="modal">
+            <img src="https://i.postimg.cc/QMCFxc53/Portada.png" alt="Francotirador Ortográfico" class="header-image">
+            <button onclick="showNameInput('individual')">Juego Individual</button>
+            <button onclick="showNameInput('pareja')">Juego en Pareja</button>
+            <!-- Línea animada del pie de página -->
+            <div class="footer-line"></div>
+            <!-- Pie de página con el nombre del creador -->
+            <div id="footer-text">
+                Creado por: Jeshua Javid Corcho Daza
+            </div>
+        </div>
+
+        <!-- Pantalla de entrada de nombres -->
+        <div id="name-input-screen" class="modal">
+            <h2>Ingresa los nombres</h2>
+            <div id="player-inputs"></div>
+            <button onclick="showLevelSelect()">Siguiente</button>
+        </div>
+
+        <!-- Pantalla de selección de nivel -->
+        <div id="level-select-screen" class="modal">
+            <h2>Selecciona el Nivel</h2>
+            <button onclick="showPrincipianteRuleSelect()">Principiante</button>
+            <button onclick="loadAndStartGame('novato')">Novato</button>
+            <button onclick="loadAndStartGame('experto')">Experto</button>
+        </div>
+
+        <!-- Selección de regla para principiante -->
+        <div id="principiante-rule-screen" class="modal">
+            <h2>Escoge una regla</h2>
+            <select id="rule-select">
+                <option value="c">Regla de la C</option>
+                <option value="s">Regla de la S</option>
+                <option value="z">Regla de la Z</option>
+            </select>
+            <button onclick="loadAndStartGame('principiante', document.getElementById('rule-select').value)">Comenzar</button>
+        </div>
+        
+        <!-- Mensaje de cambio de jugador -->
+        <div id="player-turn-message" style="display: none;"></div>
+
+        <!-- Contenedor para la interfaz de usuario del juego -->
+        <div id="ui-container">
+            <div id="loading-message" class="hidden">Cargando palabras...</div>
+            <div id="current-player" class="text-white"></div>
+            <div class="mt-4">Palabra Objetivo:</div>
+            <div id="target-word"></div>
+        </div>
+
+        <!-- Contenedor de la mirilla -->
+        <img id="crosshair" src="https://i.postimg.cc/2SygS5HW/Mirilla.png">
+
+        <!-- Contenedor de la interfaz de usuario inferior -->
+        <div id="bottom-ui-container">
+            <div>Tiempo: <span id="timer"></span></div>
+            <div>Aciertos: <span id="correct-score" style="color: limegreen;">0</span></div>
+            <div>Errores: <span id="incorrect-score" style="color: red;">0</span></div>
+        </div>
+
+        <!-- Modal de fin de juego -->
+        <div id="game-over-modal" class="modal">
+            <h2>¡Fin del Juego!</h2>
+            <p>Puntuación Final:</p>
+            <div id="final-scores"></div>
+            <button onclick="restartGame()">Jugar de Nuevo</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Variables y configuración del juego ---
+        const gameContainer = document.getElementById('game-container');
+        const uiContainer = document.getElementById('ui-container');
+        const bottomUiContainer = document.getElementById('bottom-ui-container');
+        const crosshair = document.getElementById('crosshair');
+        const timerDisplay = document.getElementById('timer');
+        const correctScoreDisplay = document.getElementById('correct-score');
+        const incorrectScoreDisplay = document.getElementById('incorrect-score');
+        const targetWordDisplay = document.getElementById('target-word');
+        const modal = document.getElementById('game-over-modal');
+        const finalScoresDisplay = document.getElementById('final-scores');
+        const loadingMessage = document.getElementById('loading-message');
+        const startScreen = document.getElementById('start-screen');
+        const nameInputScreen = document.getElementById('name-input-screen');
+        const levelSelectScreen = document.getElementById('level-select-screen');
+        const principianteRuleScreen = document.getElementById('principiante-rule-screen');
+        const playerInputsDiv = document.getElementById('player-inputs');
+        const currentPlayerDisplay = document.getElementById('current-player');
+        const playerTurnMessage = document.getElementById('player-turn-message');
+
+        let gameMode = 'individual';
+        let players = [];
+        let currentPlayerIndex = 0;
+        let correctScore = 0;
+        let incorrectScore = 0;
+        let timeLeft = 180;
+        let targetWord = '';
+        let timerInterval;
+        let wordInterval;
+        let wordSpawningInterval;
+        let words = [];
+        let wordList = [];
+        const MIN_DISTANCE_PX = 100;
+        const BASE_WORD_SPEED_PX_PER_SECOND = 24;
+        const TARGET_POINTS_TO_WIN = 20;
+
+        // --- Clases para las palabras ---
+        class Word {
+            constructor(text, x, y, direction) {
+                this.text = text;
+                this.x = x;
+                this.y = y;
+                this.direction = direction;
+                this.element = document.createElement('div');
+                this.element.textContent = this.text;
+                this.element.classList.add('word');
+                gameContainer.appendChild(this.element);
+            }
+
+            update(speed) {
+                if (this.direction === 'left') {
+                    this.x -= speed;
+                } else if (this.direction === 'right') {
+                    this.x += speed;
+                }
+                this.element.style.transform = `translate(${this.x}px, ${this.y}px)`;
+            }
+
+            isOffScreen() {
+                const rect = this.element.getBoundingClientRect();
+                return rect.left > window.innerWidth || rect.right < 0;
+            }
+
+            getRect() {
+                return this.element.getBoundingClientRect();
+            }
+            
+            isOverlapping(otherWord) {
+                const rect1 = this.getRect();
+                const rect2 = otherWord.getRect();
+                
+                const dx = (rect1.left + rect1.right) / 2 - (rect2.left + rect2.right) / 2;
+                const dy = (rect1.top + rect1.bottom) / 2 - (rect2.top + rect2.bottom) / 2;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance < MIN_DISTANCE_PX;
+            }
+        }
+
+        // --- Lógica de la API de Gemini ---
+        async function fetchNewWords(level, rule = '') {
+            loadingMessage.classList.remove('hidden');
+            let prompt = "";
+            if (level === 'principiante') {
+                if (rule === 'c') prompt = "Genera 10 pares de palabras en español, donde cada par contenga una palabra correcta y una incorrecta basándose en la regla ortográfica de la C. El formato de la respuesta debe ser un arreglo de objetos JSON, donde cada objeto tenga las propiedades 'correct' y 'incorrect'. Por ejemplo: [{'correct': 'canción', 'incorrect': 'cansión'}]";
+                if (rule === 's') prompt = "Genera 10 pares de palabras en español, donde cada par contenga una palabra correcta y una incorrecta basándose en la regla ortográfica de la S. El formato de la respuesta debe ser un arreglo de objetos JSON, donde cada objeto tenga las propiedades 'correct' y 'incorrect'. Por ejemplo: [{'correct': 'paz', 'incorrect': 'pas'}]";
+                if (rule === 'z') prompt = "Genera 10 pares de palabras en español, donde cada par contenga una palabra correcta y una incorrecta basándose en la regla ortográfica de la Z. El formato de la respuesta debe ser un arreglo de objetos JSON, donde cada objeto tenga las propiedades 'correct' y 'incorrect'. Por ejemplo: [{'correct': 'lápices', 'incorrect': 'lápises'}]";
+            } else { // Novato y experto
+                prompt = "Genera 10 pares de palabras en español, donde cada par contenga una palabra correcta y una incorrecta basándose en las reglas ortográficas de C, S y Z. El formato de la respuesta debe ser un arreglo de objetos JSON, donde cada objeto tenga las propiedades 'correct' y 'incorrect'. Por ejemplo: [{'correct': 'canción', 'incorrect': 'cansión'}, {'correct': 'lápices', 'incorrect': 'lápises'}]";
+            }
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            const payload = {
+                contents: chatHistory,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "correct": { "type": "STRING" },
+                                "incorrect": { "type": "STRING" }
+                            },
+                            "propertyOrdering": ["correct", "incorrect"]
+                        }
+                    }
+                }
+            };
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const json = result.candidates[0].content.parts[0].text;
+                    wordList = JSON.parse(json);
+                } else {
+                    console.error('Error: La respuesta de la API no tiene la estructura esperada.');
+                    fallbackWords(level);
+                }
+            } catch (error) {
+                console.error('Error al llamar a la API de Gemini:', error);
+                fallbackWords(level);
+            } finally {
+                loadingMessage.classList.add('hidden');
+            }
+        }
+
+        function fallbackWords(level) {
+            // Conjunto de palabras de reserva para los modos Novato y Experto.
+            let allFallbackWords = [
+                { correct: 'canción', incorrect: 'cansión' },
+                { correct: 'lápices', incorrect: 'lápises' },
+                { correct: 'gracioso', incorrect: 'grasioso' },
+                { correct: 'belleza', incorrect: 'bellesa' },
+                { correct: 'precisión', incorrect: 'precicion' },
+                { correct: 'certeza', incorrect: 'certesa' },
+                { correct: 'caza', incorrect: 'casa' },
+                { correct: 'luz', incorrect: 'lus' },
+                { correct: 'pez', incorrect: 'pes' },
+                { correct: 'ejercicio', incorrect: 'ejersicio' }
+            ];
+
+            // Si el nivel es principiante, se filtra la lista de palabras de reserva.
+            if (level === 'principiante') {
+                const rule = document.getElementById('rule-select').value;
+                if (rule === 'c') {
+                    wordList = allFallbackWords.filter(w => w.correct.includes('c') || w.correct.endsWith('ción') || w.correct.endsWith('cio'));
+                } else if (rule === 's') {
+                    wordList = allFallbackWords.filter(w => w.correct.includes('s') || w.correct.endsWith('sión') || w.correct.endsWith('so'));
+                } else if (rule === 'z') {
+                    wordList = allFallbackWords.filter(w => w.correct.includes('z') || w.correct.endsWith('ez') || w.correct.endsWith('eza'));
+                }
+            } else {
+                // Para los niveles Novato y Experto, se usa la lista completa de palabras de reserva.
+                wordList = allFallbackWords;
+            }
+            if (wordList.length === 0) {
+                wordList = allFallbackWords; // Asegura que siempre haya palabras
+            }
+        }
+
+        // --- Lógica de la interfaz de usuario y del juego ---
+        function showStartScreen() {
+            startScreen.style.display = 'flex';
+            nameInputScreen.style.display = 'none';
+            levelSelectScreen.style.display = 'none';
+            principianteRuleScreen.style.display = 'none';
+            modal.style.display = 'none';
+        }
+
+        function showNameInput(mode) {
+            gameMode = mode;
+            playerInputsDiv.innerHTML = '';
+            if (mode === 'individual') {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = 'Nombre del Jugador';
+                input.id = 'player-name-1';
+                playerInputsDiv.appendChild(input);
+            } else {
+                const input1 = document.createElement('input');
+                input1.type = 'text';
+                input1.placeholder = 'Nombre del Jugador 1';
+                input1.id = 'player-name-1';
+                const input2 = document.createElement('input');
+                input2.type = 'text';
+                input2.placeholder = 'Nombre del Jugador 2';
+                input2.id = 'player-name-2';
+                playerInputsDiv.appendChild(input1);
+                playerInputsDiv.appendChild(input2);
+            }
+            startScreen.style.display = 'none';
+            nameInputScreen.style.display = 'flex';
+        }
+
+        function showLevelSelect() {
+            players = [];
+            const player1Name = document.getElementById('player-name-1').value || 'Jugador 1';
+            players.push({ name: player1Name, correct: 0, incorrect: 0 });
+            if (gameMode === 'pareja') {
+                const player2Name = document.getElementById('player-name-2').value || 'Jugador 2';
+                players.push({ name: player2Name, correct: 0, incorrect: 0 });
+            }
+            nameInputScreen.style.display = 'none';
+            levelSelectScreen.style.display = 'flex';
+        }
+
+        function showPrincipianteRuleSelect() {
+            levelSelectScreen.style.display = 'none';
+            principianteRuleScreen.style.display = 'flex';
+        }
+
+        async function loadAndStartGame(level, rule = '') {
+            principianteRuleScreen.style.display = 'none';
+            levelSelectScreen.style.display = 'none';
+            loadingMessage.classList.remove('hidden');
+            await fetchNewWords(level, rule);
+            loadingMessage.classList.add('hidden');
+            startGame();
+        }
+
+        function startGame() {
+            // Oculta todas las pantallas de inicio
+            startScreen.style.display = 'none';
+            nameInputScreen.style.display = 'none';
+            levelSelectScreen.style.display = 'none';
+            principianteRuleScreen.style.display = 'none';
+            modal.style.display = 'none';
+
+            // Muestra la UI del juego
+            uiContainer.style.display = 'block';
+            bottomUiContainer.style.display = 'flex';
+            
+            // Resetea los contadores para la partida actual
+            correctScore = 0;
+            incorrectScore = 0;
+            timeLeft = 180;
+            
+            // Reinicia los contadores de la UI
+            correctScoreDisplay.textContent = '0';
+            incorrectScoreDisplay.textContent = '0';
+            
+            // Si es el inicio de la partida, resetea el array de palabras
+            words.forEach(word => word.element.remove());
+            words = [];
+            
+            // Inicia los intervalos
+            clearInterval(timerInterval);
+            clearInterval(wordInterval);
+            clearInterval(wordSpawningInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+            wordInterval = setInterval(changeTargetWord, 10000);
+            wordSpawningInterval = setInterval(spawnWord, 2000);
+
+            // Carga la primera palabra objetivo
+            changeTargetWord();
+
+            // Inicia el bucle principal del juego
+            gameLoop();
+        }
+        
+        function gameLoop() {
+            if (correctScore >= TARGET_POINTS_TO_WIN || timeLeft <= 0) {
+                endGame();
+                return;
+            }
+
+            const speedMultiplier = 1 + (correctScore / 10);
+            const pxPerFrame = (BASE_WORD_SPEED_PX_PER_SECOND / 60) * speedMultiplier;
+
+            words.forEach(word => {
+                word.update(pxPerFrame);
+            });
+
+            words = words.filter(word => !word.isOffScreen());
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateUI() {
+            correctScoreDisplay.textContent = correctScore;
+            incorrectScoreDisplay.textContent = incorrectScore;
+            currentPlayerDisplay.textContent = `Jugador: ${players[currentPlayerIndex].name}`;
+            timerDisplay.textContent = `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`;
+        }
+
+        function updateTimer() {
+            if (timeLeft > 0) {
+                timeLeft--;
+                updateUI();
+            } else {
+                endGame();
+            }
+        }
+
+        function changeTargetWord() {
+            if (wordList.length === 0) return;
+            const newTarget = wordList[Math.floor(Math.random() * wordList.length)];
+            targetWord = newTarget.correct;
+            targetWordDisplay.textContent = newTarget.correct;
+        }
+
+        function spawnWord() {
+            if (wordList.length === 0) return;
+
+            const isTarget = Math.random() < 0.2;
+            let wordText;
+
+            if (isTarget) {
+                wordText = targetWord;
+            } else {
+                const randomWordObj = wordList[Math.floor(Math.random() * wordList.length)];
+                wordText = Math.random() < 0.5 ? randomWordObj.correct : randomWordObj.incorrect;
+            }
+
+            const direction = Math.random() < 0.5 ? 'left' : 'right';
+            
+            // Obtener la altura del área de UI superior para evitar que las palabras se superpongan
+            const uiHeight = uiContainer.offsetHeight + 50; // Agrega un margen de seguridad
+            
+            // Generar una posición Y que esté por debajo de la UI superior
+            const y = Math.random() * (window.innerHeight - uiHeight - 100) + uiHeight;
+            const x = direction === 'left' ? window.innerWidth : -100;
+            
+            const newWord = new Word(wordText, x, y, direction);
+            words.push(newWord);
+        }
+
+        function handleShot(e) {
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+
+            for (let i = 0; i < words.length; i++) {
+                const word = words[i];
+                const rect = word.getRect();
+
+                if (
+                    mouseX >= rect.left && mouseX <= rect.right &&
+                    mouseY >= rect.top && mouseY <= rect.bottom
+                ) {
+                    let feedbackText = '';
+                    let feedbackColor = '';
+                    
+                    if (word.text === targetWord) {
+                        correctScore++;
+                        feedbackText = '+1';
+                        feedbackColor = 'limegreen';
+                    } else {
+                        incorrectScore++;
+                        feedbackText = '-1';
+                        feedbackColor = 'red';
+                    }
+
+                    const feedbackMessage = document.createElement('div');
+                    feedbackMessage.textContent = feedbackText;
+                    feedbackMessage.classList.add('feedback-text');
+                    feedbackMessage.style.left = `${mouseX}px`;
+                    feedbackMessage.style.top = `${mouseY}px`;
+                    feedbackMessage.style.color = feedbackColor;
+                    document.body.appendChild(feedbackMessage);
+                    setTimeout(() => feedbackMessage.remove(), 1000);
+                    
+                    word.element.remove();
+                    words.splice(i, 1);
+                    updateUI();
+                    break;
+                }
+            }
+        }
+        
+        function endGame() {
+            clearInterval(timerInterval);
+            clearInterval(wordInterval);
+            clearInterval(wordSpawningInterval);
+            
+            words.forEach(word => word.element.remove());
+            words = [];
+
+            players[currentPlayerIndex].correct = correctScore;
+            players[currentPlayerIndex].incorrect = incorrectScore;
+
+            if (gameMode === 'pareja' && currentPlayerIndex < players.length - 1) {
+                currentPlayerIndex++;
+                playerTurnMessage.textContent = `Turno de ${players[currentPlayerIndex].name}.`;
+                playerTurnMessage.style.display = 'flex';
+                setTimeout(() => {
+                    playerTurnMessage.style.display = 'none';
+                    startGame();
+                }, 2000);
+            } else {
+                showSummaryScreen();
+            }
+        }
+        
+        function showSummaryScreen() {
+            const summaryText = players.map(p => `<div>${p.name}: Aciertos <span style="color: limegreen;">${p.correct}</span>, Errores <span style="color: red;">${p.incorrect}</span></div>`).join('');
+            finalScoresDisplay.innerHTML = summaryText;
+            modal.style.display = 'flex';
+        }
+
+        function restartGame() {
+            showStartScreen();
+            currentPlayerIndex = 0;
+            players = [];
+        }
+
+        gameContainer.addEventListener('mousemove', (e) => {
+            crosshair.style.left = `${e.clientX - crosshair.offsetWidth / 2}px`;
+            crosshair.style.top = `${e.clientY - crosshair.offsetHeight / 2}px`;
+        });
+
+        gameContainer.addEventListener('mousedown', (e) => {
+            handleShot(e);
+        });
+        
+        window.onload = () => {
+            showStartScreen();
+        }
+    </script>
+</body>
+</html>
